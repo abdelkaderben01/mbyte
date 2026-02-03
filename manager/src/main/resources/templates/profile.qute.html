@@ -50,96 +50,75 @@
         <div class="content-wrapper">
             <div class="content-heading">
                 <div>Manage your profile
-                    <small>informations about your store</small>
+                    <small>your stores</small>
                 </div>
             </div>
             <div class="row mt-4 m-3">
-                <div class="col-xl-4 col-lg-6">
-                    <div class="card b">
-                        <div class="card-header">
-                            <div class="float-right">
-                                <div class="badge badge-info">free plan</div>
-                            </div>
-                            {#if content.store??}
+                {#if stores?? && stores.size() > 0}
+                    {#for store in stores}
+                    <div class="col-xl-4 col-lg-6 mb-4">
+                        <div class="card b">
+                            <div class="card-header">
+                                <div class="float-right">
+                                    <div class="badge badge-info">free plan</div>
+                                </div>
                                 <h4 class="m-0">{store.name}</h4>
                                 <small class="text-muted">{store.location}</small>
-                            {#else}
-                                <h4 class="m-0">Name not set</h4>
-                                <small class="text-muted">no location available</small>
-                            {/if}
-                        </div>
-                        {#if content.store??}
-                        <div class="card-body">
-                            <div class="d-flex align-items-center">
-                                <div class="w-100" data-toggle="tooltip" data-title="Health">
-                                    <div class="progress progress-xs m-0">
-                                        <div class="progress-bar bg-gray" style="width:22%"></div>
+                            </div>
+                            <div class="card-body">
+                                <div class="d-flex align-items-center">
+                                    <div class="w-100" data-toggle="tooltip" data-title="Health">
+                                        <div class="progress progress-xs m-0">
+                                            <div class="progress-bar bg-gray" style="width:22%"></div>
+                                        </div>
+                                    </div>
+                                    <div class="wd-xxs text-right">
+                                        <div class="text-bold text-muted">22%</div>
                                     </div>
                                 </div>
-                                <div class="wd-xxs text-right">
-                                    <div class="text-bold text-muted">22%</div>
-                                </div>
+                            </div>
+                            <table class="table">
+                                <tbody>
+                                <tr>
+                                    <td>
+                                        <strong>Creation date</strong>
+                                    </td>
+                                    <td>{store.creationDate}</td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <strong>Status</strong>
+                                    </td>
+                                    <td>
+                                        {store.status}
+                                    </td>
+                                </tr>
+                                </tbody>
+                            </table>
+                            <div class="card-footer text-center">
+                                {#if store.location?? && !store.location.isEmpty()}
+                                    <a href="{store.location}" class="btn btn-secondary mr-2" role="button" target="_blank"><em class="fa fa-external-link-alt mr-2"></em> Open</a>
+                                {#else}
+                                    <button class="btn btn-secondary mr-2" disabled title="Store location not available"><em class="fa fa-external-link-alt mr-2"></em> Open</button>
+                                {/if}
+                                <button class="btn btn-info mr-2" onclick="renameStore('{store.id}', '{store.name}')"><em class="fa fa-edit mr-2"></em> Rename</button>
+                                <button class="btn btn-danger" onclick="deleteStore('{store.id}', '{store.name}')"><em class="fa fa-trash mr-2"></em> Delete</button>
                             </div>
                         </div>
-                        <table class="table">
-                            <tbody>
-                            <tr>
-                                <td>
-                                    <strong>Creation date</strong>
-                                </td>
-                                <td>{store.creationDate}</td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <strong> Owner</strong>
-                                </td>
-                                <td>
-                                    <a href="" data-toggle="tooltip" data-title="Team leader">
-                                        <img class="rounded-circle thumb24" src="/img/user/03.jpg" alt="project member">
-                                    </a>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <strong>Authorized users</strong>
-                                </td>
-                                <td>
-                                    <a class="inline" href="#">
-                                        <img class="rounded-circle thumb24" src="/img/user/02.jpg" alt="project member">
-                                    </a>
-                                    <a class="inline" href="#">
-                                        <img class="rounded-circle thumb24" src="/img/user/04.jpg" alt="project member">
-                                    </a>
-                                    <a class="inline" href="#">
-                                        <img class="rounded-circle thumb24" src="/img/user/05.jpg" alt="project member">
-                                    </a>
-                                    <a class="inline" href="#">
-                                        <img class="rounded-circle thumb24" src="/img/user/06.jpg" alt="project member">
-                                    </a>
-                                    <a class="inline" href="#">
-                                        <strong>+5</strong>
-                                    </a>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <strong>Status</strong>
-                                </td>
-                                <td>
-                                    {store.status}
-                                </td>
-                            </tr>
-                            </tbody>
-                        </table>
-                        {/if}
-                        <div class="card-footer text-center">
-                            {#if content.store??}
-                                <a href="{store.location}" class="btn btn-secondary" role="button"><em class="fa fa-external-link-alt mr-2"></em> Go to store</a>
-                            {#else}
-                                <button class="btn btn-secondary" type="button" data-toggle="modal" data-target="#createStoreModal"><em class="fa fa-plus mr-2"></em>Create your store</button>
-                            {/if}
+                    </div>
+                    {/for}
+                {#else}
+                    <div class="col-12">
+                        <div class="alert alert-info">
+                            <h4>No stores yet</h4>
+                            <p>Click the button below to create your first store.</p>
                         </div>
                     </div>
+                {/if}
+                <div class="col-12 text-center">
+                    <button class="btn btn-primary btn-lg" type="button" data-toggle="modal" data-target="#createStoreModal">
+                        <em class="fa fa-plus mr-2"></em>Create New Store
+                    </button>
                 </div>
             </div>
         </div>
@@ -147,30 +126,144 @@
 </div>
 <div id="createStoreModal" class="modal fade" role="dialog">
     <div class="modal-dialog">
-        <form method="post" action="/api/profiles/{profile.id}/store" enctype="application/x-www-form-urlencoded">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <button type="button" class="close" data-dismiss="modal">&times;</button>
-                    <h4 class="modal-title align-content-center">Create new Store</h4>
-                </div>
-                <div class="modal-body">
-                    <div class="form-row">
-                        <div class="input-group mb-3">
-                            <div class="input-group-prepend">
-                                <span class="input-group-text" id="basic-addon1">Store name</span>
-                            </div>
-                            <input type="text" id="name" name="name" class="form-control" aria-label="Store Name" aria-describedby="basic-addon1">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+                <h4 class="modal-title align-content-center">Create new Store</h4>
+            </div>
+            <div class="modal-body">
+                <div class="form-row">
+                    <div class="input-group mb-3">
+                        <div class="input-group-prepend">
+                            <span class="input-group-text" id="basic-addon1">Store name</span>
                         </div>
+                        <input type="text" id="createStoreName" name="name" class="form-control" aria-label="Store Name" aria-describedby="basic-addon1" required>
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="submit" class="btn btn-default" id="create">Create</button>
-                    <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
-                </div>
             </div>
-        </form>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" onclick="submitCreateStore()">Create</button>
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+            </div>
+        </div>
     </div>
 </div>
+<div id="renameStoreModal" class="modal fade" role="dialog">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+                <h4 class="modal-title align-content-center">Rename Store</h4>
+            </div>
+            <div class="modal-body">
+                <div class="form-row">
+                    <div class="input-group mb-3">
+                        <div class="input-group-prepend">
+                            <span class="input-group-text">New name</span>
+                        </div>
+                        <input type="text" id="newName" name="name" class="form-control" aria-label="New Store Name" required>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" onclick="submitRenameStore()">Rename</button>
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+let currentStoreId = null;
+
+function renameStore(storeId, currentName) {
+    currentStoreId = storeId;
+    document.getElementById('newName').value = currentName;
+    $('#renameStoreModal').modal('show');
+}
+
+function submitRenameStore() {
+    const newName = document.getElementById('newName').value;
+    if (!newName || newName.trim() === '') {
+        alert('Please enter a new name');
+        return;
+    }
+
+    const formData = new URLSearchParams();
+    formData.append('name', newName);
+
+    fetch('/api/stores/' + currentStoreId, {
+        method: 'PUT',
+        credentials: 'same-origin',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: formData
+    })
+    .then(response => {
+        if (response.ok) {
+            $('#renameStoreModal').modal('hide');
+            location.reload();
+        } else {
+            alert('Failed to rename store');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error renaming store');
+    });
+}
+
+function deleteStore(storeId, storeName) {
+    if (confirm('Are you sure you want to delete "' + storeName + '"? This action cannot be undone.')) {
+        fetch('/api/stores/' + storeId, {
+            method: 'DELETE',
+            credentials: 'same-origin',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => {
+            if (response.ok) {
+                location.reload();
+            } else {
+                alert('Failed to delete store');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error deleting store');
+        });
+    }
+}
+
+function submitCreateStore() {
+    const storeName = document.getElementById('createStoreName').value;
+    if (!storeName || storeName.trim() === '') {
+        alert('Please enter a store name');
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('name', storeName);
+    
+    fetch('/api/stores', {
+        method: 'POST',
+        credentials: 'same-origin',
+        body: new URLSearchParams(formData)
+    })
+    .then(response => {
+        if (response.ok || response.status === 201) {
+            location.reload();
+        } else {
+            alert('Error creating store');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error creating store');
+    });
+}
+</script>
 <script src="/vendor/modernizr/modernizr.custom.js"></script>
 <script src="/vendor/jquery/dist/jquery.js"></script>
 <script src="/vendor/popper.js/dist/umd/popper.js"></script>

@@ -50,9 +50,9 @@ public class ProfilesResource {
         LOGGER.log(Level.INFO, "GET /api/profiles/" + id + " (html)");
         TemplateInstance view = profile.data("profile", auth.getConnectedProfile());
         try {
-            view = view.data("store", core.getConnectedUserStore());
-        } catch (StoreNotFoundException | CoreServiceException e ) {
-            //
+            view = view.data("stores", core.getAllUserStores());
+        } catch (CoreServiceException e ) {
+            LOGGER.log(Level.WARNING, "Unable to fetch user stores", e);
         }
         return view;
     }

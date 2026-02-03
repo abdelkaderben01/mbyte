@@ -5,7 +5,9 @@ import jakarta.persistence.*;
 
 @Entity
 @NamedQueries({
-    @NamedQuery(name = "Store.findByOwner", query = "SELECT s FROM Store s WHERE s.owner = :owner")
+    @NamedQuery(name = "Store.findByOwner", query = "SELECT s FROM Store s WHERE s.owner = :owner"),
+    @NamedQuery(name = "Store.findAllByOwner", query = "SELECT s FROM Store s WHERE s.owner = :owner ORDER BY s.creationDate DESC"),
+    @NamedQuery(name = "Store.findById", query = "SELECT s FROM Store s WHERE s.id = :id")
 })
 @Table(indexes = {
         @Index(name = "stores_idx", columnList = "owner")
@@ -23,8 +25,8 @@ public class Store {
     @Enumerated(EnumType.STRING)
     private Status status;
     @Lob
+    @jakarta.persistence.Basic(fetch = jakarta.persistence.FetchType.LAZY)
     private String log;
-    @Transient
     private String location;
 
     public Store() {

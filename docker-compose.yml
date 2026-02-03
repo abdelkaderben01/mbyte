@@ -1,9 +1,23 @@
 services:
+  db:
+    image: postgres:15-alpine
+    hostname: db
+    container_name: mbyte_container
+    environment:
+      - POSTGRES_USER=mbyte
+      - POSTGRES_PASSWORD=Tagada54
+      - POSTGRES_DB=mbyte
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./provisioning/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      mbyte:
+        ipv4_address: 172.25.0.11
   traefik:
     image: traefik:v3.3
     hostname: proxy
     container_name: mbyte_proxy
-    command: --api.insecure=true --providers.docker
+    command: --api.insecure=true --providers.docker --providers.docker.network=mbyte_network
     ports:
       - "80:80"
       - "443:443"
@@ -13,41 +27,25 @@ services:
     networks:
       mbyte:
         ipv4_address: 172.25.0.2
+    labels:
+      - "traefik.http.routers.redirect.rule=PathPrefix(`/`)"
+      - "traefik.http.routers.redirect.entrypoints=http"
+      - "traefik.http.routers.redirect.priority=1"
+      - "traefik.http.routers.redirect.middlewares=redirect-www"
+      - "traefik.http.middlewares.redirect-www.redirectregex.regex=^http://localhost(.*)"
+      - "traefik.http.middlewares.redirect-www.redirectregex.replacement=http://www.mbyte.fr$$1"
+      - "traefik.http.middlewares.redirect-www.redirectregex.permanent=true"
 
   consul:
     image: hashicorp/consul:1.19
-    hostname: registry
+    hostname: consul
     container_name: mbyte_registry
     command: agent -server -ui -bootstrap-expect=1 -client=0.0.0.0 -log-level=info
-    environment:
-      - CONSUL_BIND_INTERFACE=eth0
-    labels:
-      - "traefik.enable=true"
-      - "traefik.docker.network=mbyte"
-      - "traefik.http.routers.consul.rule=Host(`registry.mbyte.fr`)"
-      - "traefik.http.routers.consul.entrypoints=http"
-      - "traefik.http.routers.consul.service=consul-http"
-      - "traefik.http.services.consul-http.loadbalancer.server.port=8500"
-    depends_on:
-      - traefik
     networks:
       mbyte:
         ipv4_address: 172.25.0.10
-
-  db:
-    image: postgres
-    hostname: db
-    container_name: mbyte_db
-    environment:
-      - POSTGRES_USER=mbyte
-      - POSTGRES_PASSWORD=Tagada54
-      - POSTGRES_DB=mbyte
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-      - ./provisioning/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
-    networks:
-      mbyte:
-        ipv4_address: 172.25.0.11
+        aliases:
+          - consul
 
   keycloak:
     build:
@@ -64,6 +62,7 @@ services:
       KC_DB_PASSWORD: Tagada54
       KC_HOSTNAME: auth.mbyte.fr
       KC_HTTP_PORT: 80
+      KC_HTTP_ENABLED: "true"
       KC_PROXY: edge
     labels:
       - "traefik.enable=true"
@@ -83,16 +82,27 @@ services:
           - auth.mbyte.fr
 
   manager:
-    image: jerome/manager:25.1-SNAPSHOT
+    build:
+      context: ./manager
+      dockerfile: src/main/docker/Dockerfile.jvm
+    image: abdelkader2020/manager:25.1
     hostname: manager
     container_name: mbyte_manager
+    user: "0:0"
+    restart: always
     depends_on:
       - db
       - traefik
+      
       - keycloak
+      - consul
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
     networks:
       mbyte:
         ipv4_address: 172.25.0.13
+    extra_hosts:
+      - "consul:172.25.0.10"
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=mbyte"
@@ -107,16 +117,22 @@ services:
       - MANAGER.TOPOLOGY.PORT=8500
 
   store:
-    image: jerome/store:25.1-SNAPSHOT
+    build:
+      context: ./store
+      dockerfile: src/main/docker/Dockerfile.jvm
+    image: abdelkader2020/store:25.1
     hostname: sheldon
     container_name: mbyte_store_sheldon
     depends_on:
       - db
       - traefik
       - keycloak
+      - consul
     networks:
       mbyte:
         ipv4_address: 172.25.0.14
+    extra_hosts:
+      - "consul:172.25.0.10"
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=mbyte"
@@ -129,6 +145,23 @@ services:
       - QUARKUS_OIDC_AUTH_SERVER_URL=http://auth.mbyte.fr/realms/mbyte
       - MANAGER.TOPOLOGY.HOST=consul
       - MANAGER.TOPOLOGY.PORT=8500
+      - STORE_AUTH_OWNER=abdelkaderb
+      - QUARKUS_CONFIG_LOCATIONS=/deployments/config/application.properties
+
+  dns:
+    image: coredns/coredns:1.11.1
+    hostname: dns
+    container_name: mbyte_dns
+    command: -conf /etc/coredns/Corefile
+    volumes:
+      - ./Corefile:/etc/coredns/Corefile:ro
+    ports:
+      - "1053:53/udp"
+      - "1053:53/tcp"
+    networks:
+      mbyte:
+        ipv4_address: 172.25.0.53
+    restart: always
 
 networks:
   mbyte:
@@ -141,8 +174,3 @@ networks:
 
 volumes:
   postgres-data:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: /var/local/mbyte/db

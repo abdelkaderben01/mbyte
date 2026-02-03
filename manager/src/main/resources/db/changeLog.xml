@@ -34,4 +34,10 @@
         </createTable>
     </changeSet>
 
+    <changeSet id="2" author="jerome">
+        <addColumn tableName="store">
+            <column name="location" type="varchar"/>
+        </addColumn>
+    </changeSet>
+
 </databaseChangeLog>
