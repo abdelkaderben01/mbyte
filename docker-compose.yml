@@ -11,7 +11,7 @@ services:
       - postgres-data:/var/lib/postgresql/data
       - ./provisioning/init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
-      mbyte:
+      mbyte_network:
         ipv4_address: 172.25.0.11
   traefik:
     image: traefik:v3.3
@@ -25,7 +25,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     networks:
-      mbyte:
+      mbyte_network:
         ipv4_address: 172.25.0.2
     labels:
       - "traefik.http.routers.redirect.rule=PathPrefix(`/`)"
@@ -42,7 +42,7 @@ services:
     container_name: mbyte_registry
     command: agent -server -ui -bootstrap-expect=1 -client=0.0.0.0 -log-level=info
     networks:
-      mbyte:
+      mbyte_network:
         ipv4_address: 172.25.0.10
         aliases:
           - consul
@@ -66,7 +66,7 @@ services:
       KC_PROXY: edge
     labels:
       - "traefik.enable=true"
-      - "traefik.docker.network=mbyte"
+      - "traefik.docker.network=mbyte_network"
       - "traefik.http.routers.keycloak.rule=Host(`auth.mbyte.fr`)"
       - "traefik.http.routers.keycloak.entrypoints=http"
       - "traefik.http.routers.keycloak.service=keycloak-http"
@@ -76,7 +76,7 @@ services:
       - db
       - traefik
     networks:
-      mbyte:
+      mbyte_network:
         ipv4_address: 172.25.0.12
         aliases:
           - auth.mbyte.fr
@@ -99,13 +99,13 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     networks:
-      mbyte:
+      mbyte_network:
         ipv4_address: 172.25.0.13
     extra_hosts:
       - "consul:172.25.0.10"
     labels:
       - "traefik.enable=true"
-      - "traefik.docker.network=mbyte"
+      - "traefik.docker.network=mbyte_network"
       - "traefik.http.routers.manager.rule=Host(`www.mbyte.fr`)"
       - "traefik.http.routers.manager.entrypoints=http"
       - "traefik.http.routers.manager.service=manager-http"
@@ -129,13 +129,13 @@ services:
       - keycloak
       - consul
     networks:
-      mbyte:
+      mbyte_network:
         ipv4_address: 172.25.0.14
     extra_hosts:
       - "consul:172.25.0.10"
     labels:
       - "traefik.enable=true"
-      - "traefik.docker.network=mbyte"
+      - "traefik.docker.network=mbyte_network"
       - "traefik.http.routers.sheldon.rule=Host(`sheldon.s.mbyte.fr`)"
       - "traefik.http.routers.sheldon.entrypoints=http"
       - "traefik.http.routers.sheldon.service=sheldon-http"
@@ -159,12 +159,12 @@ services:
       - "1053:53/udp"
       - "1053:53/tcp"
     networks:
-      mbyte:
+      mbyte_network:
         ipv4_address: 172.25.0.53
     restart: always
 
 networks:
-  mbyte:
+  mbyte_network:
     name: mbyte_network
     driver: bridge
     ipam:
