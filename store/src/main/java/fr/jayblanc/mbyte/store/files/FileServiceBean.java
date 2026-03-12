@@ -12,11 +12,13 @@ import fr.jayblanc.mbyte.store.metrics.GenerateMetric;
 import fr.jayblanc.mbyte.store.metrics.MetricsSource;
 import fr.jayblanc.mbyte.store.notification.NotificationService;
 import fr.jayblanc.mbyte.store.notification.NotificationServiceException;
+import fr.jayblanc.mbyte.store.topology.TopologyConfig;
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.LockModeType;
+import jakarta.persistence.NoResultException;
 import jakarta.persistence.PersistenceException;
 import jakarta.transaction.Transactional;
 
@@ -40,6 +42,7 @@ public class FileServiceBean implements FileService, IndexableContentProvider {
     @Inject NotificationService notification;
     @Inject AuthenticationService auth;
     @Inject EntityManager em;
+    @Inject TopologyConfig topologyConfig;
 
     public FileServiceBean() {
     }
@@ -57,7 +60,8 @@ public class FileServiceBean implements FileService, IndexableContentProvider {
                 }
                 if ( bootstrap ) {
                     LOGGER.log(Level.INFO, "Root node does not exists, applying bootstrap");
-                    Node root = new Node(Node.Type.TREE, "", ROOT_NODE_ID, "root");
+                    Node root = new Node(Node.Type.TREE, "", rootNodeIdForStore(), "root");
+                    root.setOwner(getStoreKey());
                     em.persist(root);
                     LOGGER.log(Level.INFO, "Bootstrap done, root node exists now.");
                 }
@@ -72,7 +76,10 @@ public class FileServiceBean implements FileService, IndexableContentProvider {
     public List<Node> list(String parent) throws NodeNotFoundException {
         LOGGER.log(Level.INFO, "Listing children for parent: " + parent);
         Node pnode = this.loadNode(parent);
-        List<Node> nodes = em.createNamedQuery("Node.findAllChildren", Node.class).setParameter("parent", pnode.getId()).getResultList();
+        List<Node> nodes = em.createNamedQuery("Node.findAllChildren", Node.class)
+                .setParameter("owner", getStoreKey())
+                .setParameter("parent", pnode.getId())
+                .getResultList();
         return nodes;
     }
 
@@ -80,7 +87,7 @@ public class FileServiceBean implements FileService, IndexableContentProvider {
     @Override
     public List<Node> path(String id) throws NodeNotFoundException {
         LOGGER.log(Level.FINE, "Get path for node with id: " + id);
-        String pid = (id == null || id.isEmpty()) ? ROOT_NODE_ID:id;
+        String pid = normalizeNodeId((id == null || id.isEmpty()) ? ROOT_NODE_ID:id);
         List<Node> path = new ArrayList<>();
         while (pid != null && !pid.isEmpty()) {
             Node current = loadNode(pid);
@@ -99,7 +106,9 @@ public class FileServiceBean implements FileService, IndexableContentProvider {
     }
 
     public List<Node> findAll() throws NodeNotFoundException {
-        List<Node> nodes = em.createNamedQuery("Node.findAll", Node.class).getResultList();
+        List<Node> nodes = em.createNamedQuery("Node.findAll", Node.class)
+            .setParameter("owner", getStoreKey())
+            .getResultList();
         LOGGER.log(Level.INFO,"Test recup nb nodes: " + nodes.size());
         for (Node node : nodes){
              LOGGER.log(Level.INFO, "Full path du fichier: "+this.getFullPath(this.path(node.getId())));
@@ -135,11 +144,16 @@ public class FileServiceBean implements FileService, IndexableContentProvider {
         if (!pnode.isFolder()) {
             throw new NodeTypeException("Parent must be a node of type TREE");
         }
-        List<Node> nodes = em.createNamedQuery("Node.findChildrenForName", Node.class).setParameter("parent", pnode.getId()).setParameter("name", name).getResultList();
+        List<Node> nodes = em.createNamedQuery("Node.findChildrenForName", Node.class)
+                .setParameter("owner", getStoreKey())
+                .setParameter("parent", pnode.getId())
+                .setParameter("name", name)
+                .getResultList();
         if (!nodes.isEmpty()) {
             throw new NodeAlreadyExistsException("A node with name: " + name + " already exists in tree with id: " + pnode.getId());
         }
         Node node = new Node(Node.Type.TREE, pnode.getId(), UUID.randomUUID().toString(), name);
+        node.setOwner(getStoreKey());
         node.setMimetype(TREE_NODE_MIMETYPE);
         em.persist(node);
         pnode.setSize(pnode.getSize()+1);
@@ -158,12 +172,17 @@ public class FileServiceBean implements FileService, IndexableContentProvider {
         if (!pnode.isFolder()) {
             throw new NodeTypeException("Parent must be a node of type TREE");
         }
-        List<Node> nodes = em.createNamedQuery("Node.findChildrenForName", Node.class).setParameter("parent", pnode.getId()).setParameter("name", name).getResultList();
+        List<Node> nodes = em.createNamedQuery("Node.findChildrenForName", Node.class)
+                .setParameter("owner", getStoreKey())
+                .setParameter("parent", pnode.getId())
+                .setParameter("name", name)
+                .getResultList();
         if (!nodes.isEmpty()) {
             throw new NodeAlreadyExistsException("A node with name: " + name + " already exists in tree with id: " + pnode.getId());
         }
         String cid = datastore.put(content);
         Node node = new Node(Node.Type.BLOB, pnode.getId(), UUID.randomUUID().toString(), name);
+        node.setOwner(getStoreKey());
         node.setContent(cid);
         node.setSize(datastore.size(cid));
         node.setMimetype(datastore.type(cid, name));
@@ -183,11 +202,23 @@ public class FileServiceBean implements FileService, IndexableContentProvider {
         if (!pnode.isFolder()) {
             throw new NodeTypeException("Parent must be a node of type TREE");
         }
-        Node node = em.createNamedQuery("Node.findChildrenForName", Node.class).setParameter("parent", pnode.getId()).setParameter("name", name).getSingleResult();
+        Node node;
+        try {
+            node = em.createNamedQuery("Node.findChildrenForName", Node.class)
+                    .setParameter("owner", getStoreKey())
+                    .setParameter("parent", pnode.getId())
+                    .setParameter("name", name)
+                    .getSingleResult();
+        } catch (NoResultException e) {
+            node = null;
+        }
         if (node == null) {
             throw new NodeNotFoundException("A node with name: " + name + " does not exists in tree with id: " + pnode.getId());
         }
-        int children = em.createNamedQuery("Node.countChildren", Integer.class).setParameter("parent", pnode.getId()).getSingleResult();
+        long children = em.createNamedQuery("Node.countChildren", Long.class)
+                .setParameter("owner", getStoreKey())
+                .setParameter("parent", node.getId())
+                .getSingleResult();
         if (children > 0) {
             throw new NodeNotEmptyException("The node with name: " + name + " is not empty");
         }
@@ -210,8 +241,23 @@ public class FileServiceBean implements FileService, IndexableContentProvider {
     }
 
     private Node systemLoadNode(String id) throws NodeNotFoundException {
-        String pid = (id == null || id.isEmpty()) ? ROOT_NODE_ID:id;
-        Node node = em.find(Node.class, pid);
+        String pid = normalizeNodeId((id == null || id.isEmpty()) ? ROOT_NODE_ID:id);
+        Node node;
+        try {
+            node = em.createNamedQuery("Node.findByOwnerAndId", Node.class)
+                    .setParameter("owner", getStoreKey())
+                    .setParameter("id", pid)
+                    .getSingleResult();
+        } catch (NoResultException e) {
+            // First access on a fresh store: create the per-store root lazily in a transaction.
+            if (pid.equals(rootNodeIdForStore())) {
+                node = new Node(Node.Type.TREE, "", rootNodeIdForStore(), "root");
+                node.setOwner(getStoreKey());
+                em.persist(node);
+            } else {
+                node = null;
+            }
+        }
         if (node == null) {
             throw new NodeNotFoundException("unable to find a node with id: " + pid);
         }
@@ -219,12 +265,31 @@ public class FileServiceBean implements FileService, IndexableContentProvider {
     }
 
     private Node loadNodeWithLock(String id) throws NodeNotFoundException {
-        String pid = (id == null || id.isEmpty()) ? ROOT_NODE_ID:id;
+        String pid = normalizeNodeId((id == null || id.isEmpty()) ? ROOT_NODE_ID:id);
         Node node = em.find(Node.class, pid, LockModeType.PESSIMISTIC_WRITE);
+        if (node != null && !getStoreKey().equals(node.getOwner())) {
+            node = null;
+        }
         if (node == null) {
             throw new NodeNotFoundException("unable to find a node with id: " + pid);
         }
         return node;
+    }
+
+    private String getStoreKey() {
+        return topologyConfig.service().name();
+    }
+
+    private String rootNodeIdForStore() {
+        // Keep API stable (/api/nodes/root) while persisting a unique root key per store.
+        return "root:" + getStoreKey();
+    }
+
+    private String normalizeNodeId(String id) {
+        if (ROOT_NODE_ID.equals(id)) {
+            return rootNodeIdForStore();
+        }
+        return id;
     }
 
     @Override

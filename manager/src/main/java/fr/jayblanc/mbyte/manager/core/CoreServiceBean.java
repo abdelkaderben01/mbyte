@@ -124,7 +124,11 @@ public class CoreServiceBean implements CoreService {
         }
         // Consul tag sometimes prefixes with "fqdn."; strip it so the href is a valid URL
         if (location.startsWith("fqdn.")) {
-            return location.substring("fqdn.".length());
+            location = location.substring("fqdn.".length());
+        }
+        // Ensure the URL has the http:// scheme for proper link handling
+        if (!location.startsWith("http://") && !location.startsWith("https://")) {
+            location = "http://" + location;
         }
         return location;
     }

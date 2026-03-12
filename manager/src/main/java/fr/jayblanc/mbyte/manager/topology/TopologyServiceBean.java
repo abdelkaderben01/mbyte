@@ -86,8 +86,14 @@ public class TopologyServiceBean implements TopologyService {
     @Override
     public String lookup(String name) {
         CatalogClient catalog = consulClient.catalogClient();
-        List<CatalogService> services =  catalog.getService("mbyte.store.".concat(name)).getResponse();
+        // Try mbyte.store. prefix (new naming convention)
+        List<CatalogService> services = catalog.getService("mbyte.store.".concat(name)).getResponse();
         LOGGER.log(Level.INFO, "Services list: " + services);
+        // Fallback: try miage24.store. prefix (legacy containers)
+        if (services.isEmpty()) {
+            services = catalog.getService("miage24.store.".concat(name)).getResponse();
+            LOGGER.log(Level.INFO, "Fallback services list: " + services);
+        }
         Optional<String> fqdn = services.stream().flatMap(s -> s.getServiceTags().stream().filter(tag -> tag.startsWith("fqdn"))).findFirst();
         if (fqdn.isPresent()) {
             return fqdn.get();

@@ -9,14 +9,15 @@ import java.util.Objects;
 
 @Entity
 @NamedQueries({
-        @NamedQuery(name = "Node.findAllChildren", query = "SELECT n FROM Node n WHERE n.parent = :parent"),
-        @NamedQuery(name = "Node.findAll", query = "SELECT n FROM Node n"),
-        @NamedQuery(name = "Node.findChildrenForName", query = "SELECT n FROM Node n WHERE n.parent = :parent AND n.name = :name"),
-        @NamedQuery(name = "Node.countChildren", query = "SELECT count(n) FROM Node n WHERE n.parent = :parent"),
+    @NamedQuery(name = "Node.findAllChildren", query = "SELECT n FROM Node n WHERE n.owner = :owner AND n.parent = :parent"),
+    @NamedQuery(name = "Node.findAll", query = "SELECT n FROM Node n WHERE n.owner = :owner"),
+    @NamedQuery(name = "Node.findChildrenForName", query = "SELECT n FROM Node n WHERE n.owner = :owner AND n.parent = :parent AND n.name = :name"),
+    @NamedQuery(name = "Node.countChildren", query = "SELECT count(n) FROM Node n WHERE n.owner = :owner AND n.parent = :parent"),
+    @NamedQuery(name = "Node.findByOwnerAndId", query = "SELECT n FROM Node n WHERE n.owner = :owner AND n.id = :id"),
 })
 @Table(indexes = {
-        @Index(name = "parent", columnList = "parent"),
-        @Index(name = "parent_name", columnList = "parent, name"),
+    @Index(name = "owner_parent", columnList = "owner, parent"),
+    @Index(name = "owner_parent_name", columnList = "owner, parent, name"),
 })
 public class Node implements Comparable<Node>, Serializable {
 
@@ -30,6 +31,8 @@ public class Node implements Comparable<Node>, Serializable {
     @Version
     private long version;
     private String name;
+    @Column(length = 250)
+    private String owner;
     @Column(length = 50)
     private String mimetype;
     private long size;
@@ -88,6 +91,14 @@ public class Node implements Comparable<Node>, Serializable {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public String getOwner() {
+        return owner;
+    }
+
+    public void setOwner(String owner) {
+        this.owner = owner;
     }
 
     public String getContent() {
